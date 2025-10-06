@@ -1,0 +1,122 @@
+pipeline {
+    agent any
+
+    environment { 
+        GIT_REPO   = 'https://github.com/YongSinh/agritech-iot.git'
+        APP_ENV    = 'uat'
+        APP_VERSION = '1.0.0'
+    }
+
+    parameters {
+        choice(name: 'BRANCH', choices: ['dev', 'uat', 'main'], description: 'Please select branch')
+        choice(name: 'PROJECT', choices: ['agritech-iot', 'logs-service', 'api-gateway'], description: 'Please select project')
+        choice(name: 'JDK', choices: ['graalvm-jdk-21', 'graalvm-jdk-24'], description: 'Please select JDK version')
+    }
+
+    tools {
+        jdk "${params.JDK}"
+        maven 'Maven 3.9.5'
+    }
+
+    stages {
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()
+            }
+        }
+        stage('Validate Tools') {
+            steps {
+                script {
+                    def javaHome = tool name: "${params.JDK}", type: 'jdk'
+                    def javaPath = "${javaHome}/bin/java"
+                    
+                    if (!fileExists(javaPath)) {
+                        error("❌ JDK not found or incompatible at: ${javaPath}")
+                    }
+                    
+                    def javaVersion = sh(script: "${javaPath} -version 2>&1", returnStdout: true).trim()
+                    echo "✅ Using Java: ${javaVersion}"
+                }
+            }
+        }
+        stage('Checkout Code') {
+            steps {
+                script {
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: "*/${params.BRANCH}"]],
+                        extensions: [
+                            [$class: 'SparseCheckoutPaths', sparseCheckoutPaths: [[path: "${params.PROJECT}"]]]
+                        ],
+                        userRemoteConfigs: [[
+                            url: "${env.GIT_REPO}",
+                            credentialsId: 'jenkins_ci'
+                        ]]
+                    ])
+                }
+            }
+        }
+
+        // stage('Build Project') {
+        //     steps {
+        //         script {
+        //             def projectDir = "${params.PROJECT}"
+        //             def pomFile = "${projectDir}/pom.xml"
+                    
+        //             if (!fileExists(pomFile)) {
+        //                 error "POM file not found at '${pomFile}'. Please check the repository structure."
+        //             }
+                    
+        //             // Capture Maven output
+        //             def mavenOutput = sh(script: """
+        //                 cd ${projectDir}
+        //                 echo "Building project: ${projectDir}"
+        //                 mvn -f pom.xml clean package spring-boot:build-image -DskipTests=true
+        //             """, returnStdout: true).trim()
+
+        //             // Extract Docker image name from Maven output
+        //             def imageName = (mavenOutput =~ /Successfully built image '([^']+)'/)[0][1]
+        //             echo "Built Docker image: ${imageName}"
+
+        //             // Store the image name in an environment variable for later use
+        //             env.DOCKER_IMAGE = imageName
+        //         }
+        //     }
+        // }
+
+        stage('Build Project') { 
+            steps {
+                script {
+                    def projectDir = "${params.PROJECT}"
+                    def pomFile = "${projectDir}/pom.xml"
+
+                    if (!fileExists(pomFile)) {
+                        error "POM file not found at '${pomFile}'. Please check the repository structure."
+                    }
+
+                    dir(projectDir) {
+                        echo "Building project: ${projectDir}"
+                        sh "mvn -f pom.xml clean package spring-boot:build-image -DskipTests=true"
+                    }
+                }
+            }
+        }
+
+        stage('Delpoy Project') {
+            steps {
+                script {
+                    echo "✅ Delpoy Docker image: ${params.PROJECT}"
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Build completed successfully for project: ${params.PROJECT}"
+        }
+        failure {
+            echo "❌ Build failed for project: ${params.PROJECT}. Check the logs for details."
+        }
+    }
+}
