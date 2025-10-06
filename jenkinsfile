@@ -10,14 +10,7 @@
         parameters {
             choice(name: 'BRANCH', choices: ['main', 'uat'], description: 'Please select branch')
             choice(name: 'PROJECT', choices: [
-                'errorhandling', 
-                'eda', 
-                'load-balancing', 
-                'openapi-gateway', 
-                'protocol', 
-                'schedule', 
-                'orchestration',
-                'mediation'
+                'test', 
             ], description: 'Please select project')
             // Add a parameter for the cron schedule
             string(name: 'CRON_SCHEDULE', defaultValue: '', description: 'Cron expression for scheduling the build (e.g., "0 2 * * *" for daily at 2 AM). Leave empty to build immediately.')

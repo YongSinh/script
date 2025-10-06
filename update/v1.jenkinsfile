@@ -3,14 +3,7 @@
         parameters {
             choice(name: 'BRANCH', choices: ['main', 'uat'], description: 'Please select branch')
             choice(name: 'PROJECT', choices: [
-                'errorhandling', 
-                'eda', 
-                'load-balancing', 
-                'openapi-gateway', 
-                'protocol', 
-                'schedule', 
-                'orchestration',
-                'mediation'
+                'test'
             ], description: 'Please select project')
         }
         tools {
